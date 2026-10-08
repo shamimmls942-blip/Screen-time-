@@ -205,6 +205,7 @@ jobs:
                   val hours5y = avgMs / 3_600_000.0 * 365 * 5
                   val days5y = hours5y / 24.0
                   val months5y = days5y / 30.4
+                  val years5y = days5y / 365.0
 
                   // Today
                   root.addView(card(0xFF1F4E79.toInt()).apply {
@@ -220,11 +221,12 @@ jobs:
                   // 5 years projection
                   val h = hours5y.toLong()
                   root.addView(card(0xFF4F3A8F.toInt()).apply {
-                      addView(tv("\u098F\u0987 \u09B9\u09BE\u09B0\u09C7 \u09EB \u09AC\u099B\u09B0\u09C7 \u0986\u09AA\u09A8\u09BF \u09AB\u09CB\u09A8\u09C7 \u09AC\u09CD\u09AF\u09AF\u09BC \u0995\u09B0\u09AC\u09C7\u09A8", 16f, 0xFFEDE7FF.toInt(), false))
+                      addView(tv("\u0986\u09AA\u09A8\u09BF \u098F\u0996\u09A8 \u09AA\u09B0\u09CD\u09AF\u09A8\u09CD\u09A4 \u09AC\u09CD\u09AF\u09AF\u09BC \u0995\u09B0\u09C7\u099B\u09C7\u09A8", 16f, 0xFFEDE7FF.toInt(), false))
                       addView(tv("${num(h)} \u0998\u09A3\u09CD\u099F\u09BE", 40f, Color.WHITE, true))
                       addView(tv("\u0985\u09B0\u09CD\u09A5\u09BE\u09CE", 16f, 0xFFEDE7FF.toInt(), false))
                       addView(tv("${num(days5y.toLong())} \u09A6\u09BF\u09A8", 40f, Color.WHITE, true))
-                      addView(tv("\u2248 ${num(months5y.toLong())} \u09AE\u09BE\u09B8 \u09A6\u09BF\u09A8\u09B0\u09BE\u09A4 \u098F\u0995\u099F\u09BE\u09A8\u09BE \u09AB\u09CB\u09A8\u09C7!", 15f, 0xFFEDE7FF.toInt(), false))
+                      addView(tv("\u2248 ${num(months5y.toLong())} \u09AE\u09BE\u09B8", 18f, 0xFFEDE7FF.toInt(), false))
+                      addView(tv("\u2248 ${bn(String.format(Locale.US, "%.1f", years5y))} \u09AC\u099B\u09B0", 18f, 0xFFEDE7FF.toInt(), false))
                   })
                   // Fun card
                   val seed = (Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
