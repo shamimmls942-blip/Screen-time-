@@ -5,6 +5,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/setup-java@v4
         with:
@@ -287,3 +289,8 @@ jobs:
           name: PhoneTime-APK
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          name: PhoneTime build ${{ github.run_number }}
+          files: app/build/outputs/apk/debug/app-debug.apk
