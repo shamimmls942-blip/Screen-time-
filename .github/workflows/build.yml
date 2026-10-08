@@ -17,7 +17,7 @@ jobs:
           gradle-version: 8.7
       - name: Generate project files
         run: |
-          mkdir -p app/src/main/java/com/example/phonetime
+          mkdir -p app/src/main/java/com/example/phonetime app/src/main/res/drawable app/src/main/res/mipmap-anydpi app/src/main/res/mipmap-anydpi-v26
           cat > settings.gradle.kts <<'EOF'
           pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
           dependencyResolutionManagement { repositories { google(); mavenCentral() } }
@@ -69,6 +69,8 @@ jobs:
                   </intent>
               </queries>
               <application
+                  android:icon="@mipmap/ic_launcher"
+                  android:roundIcon="@mipmap/ic_launcher"
                   android:label="&#x9AB;&#x9CB;&#x9A8;&#x9C7;&#x9B0; &#x9AA;&#x9C7;&#x99B;&#x9A8;&#x9C7; &#x995;&#x9A4; &#x9B8;&#x9AE;&#x9AF;&#x9BC;?"
                   android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
                   <activity android:name=".MainActivity" android:exported="true">
@@ -79,6 +81,44 @@ jobs:
                   </activity>
               </application>
           </manifest>
+          EOF
+          cat > app/src/main/res/drawable/ic_launcher_bg.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#4F3A8F" android:pathData="M0,0h108v108h-108z" />
+              <path android:fillColor="#6A52B3" android:pathData="M108,0 L108,60 A60,60 0 0 1 48,0 Z" />
+              <path android:fillColor="#3A2A70" android:pathData="M0,108 L0,70 A40,40 0 0 1 40,108 Z" />
+          </vector>
+          EOF
+          cat > app/src/main/res/drawable/ic_launcher_fg.xml <<'EOF'
+          <vector xmlns:android="http://schemas.android.com/apk/res/android"
+              android:width="108dp" android:height="108dp"
+              android:viewportWidth="108" android:viewportHeight="108">
+              <path android:fillColor="#FFFFFF"
+                  android:pathData="M45,29 H63 A6,6 0 0 1 69,35 V73 A6,6 0 0 1 63,79 H45 A6,6 0 0 1 39,73 V35 A6,6 0 0 1 45,29 Z" />
+              <path android:fillColor="#2B1F52"
+                  android:pathData="M45,36 H63 A3,3 0 0 1 66,39 V69 A3,3 0 0 1 63,72 H45 A3,3 0 0 1 42,69 V39 A3,3 0 0 1 45,36 Z" />
+              <path android:strokeColor="#C9B6FF" android:strokeWidth="2.2" android:fillColor="#00000000"
+                  android:pathData="M46,54 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0" />
+              <path android:strokeColor="#FFFFFF" android:strokeWidth="2.2" android:strokeLineCap="round"
+                  android:fillColor="#00000000"
+                  android:pathData="M54,49 V54 H58" />
+              <path android:strokeColor="#C9B6FF" android:strokeWidth="2" android:strokeLineCap="round"
+                  android:pathData="M51,32.5 H57" />
+          </vector>
+          EOF
+          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+          <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+              <background android:drawable="@drawable/ic_launcher_bg" />
+              <foreground android:drawable="@drawable/ic_launcher_fg" />
+          </adaptive-icon>
+          EOF
+          cat > app/src/main/res/mipmap-anydpi/ic_launcher.xml <<'EOF'
+          <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+              <item android:drawable="@drawable/ic_launcher_bg" />
+              <item android:drawable="@drawable/ic_launcher_fg" />
+          </layer-list>
           EOF
           cat > app/src/main/java/com/example/phonetime/MainActivity.kt <<'EOF'
           package com.example.phonetime
@@ -272,27 +312,4 @@ jobs:
 
               private fun button(t: String, onClick: () -> Unit) = TextView(this).apply {
                   text = t; setTextColor(0xFFC9B6FF.toInt()); setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
-                  typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
-                  setPadding(0, dp(16), 0, dp(16))
-                  background = GradientDrawable().apply {
-                      setColor(Color.TRANSPARENT); setStroke(dp(1), 0xFFC9B6FF.toInt()); cornerRadius = dp(30).toFloat()
-                  }
-                  layoutParams = LinearLayout.LayoutParams(-1, -2)
-                  setOnClickListener { onClick() }
-              }
-
-              companion object { const val BG = 0xFF121014.toInt() }
-          }
-          EOF
-      - name: Build
-        run: gradle assembleDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: PhoneTime-APK
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: build-${{ github.run_number }}
-          name: PhoneTime build ${{ github.run_number }}
-          files: app/build/outputs/apk/debug/app-debug.apk
+    
