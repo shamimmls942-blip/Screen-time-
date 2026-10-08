@@ -1,0 +1,289 @@
+name: Build APK
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+      - name: Generate project files
+        run: |
+          mkdir -p app/src/main/java/com/example/phonetime
+          cat > settings.gradle.kts <<'EOF'
+          pluginManagement { repositories { google(); mavenCentral(); gradlePluginPortal() } }
+          dependencyResolutionManagement { repositories { google(); mavenCentral() } }
+          rootProject.name = "PhoneTime"
+          include(":app")
+          EOF
+          cat > build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application") version "8.5.2" apply false
+              id("org.jetbrains.kotlin.android") version "1.9.24" apply false
+          }
+          EOF
+          cat > gradle.properties <<'EOF'
+          org.gradle.jvmargs=-Xmx2g -Dfile.encoding=UTF-8
+          android.useAndroidX=false
+          EOF
+          cat > app/build.gradle.kts <<'EOF'
+          plugins {
+              id("com.android.application")
+              id("org.jetbrains.kotlin.android")
+          }
+          android {
+              namespace = "com.example.phonetime"
+              compileSdk = 34
+              defaultConfig {
+                  applicationId = "com.example.phonetime"
+                  minSdk = 24
+                  targetSdk = 34
+                  versionCode = 1
+                  versionName = "1.0"
+              }
+              compileOptions {
+                  sourceCompatibility = JavaVersion.VERSION_17
+                  targetCompatibility = JavaVersion.VERSION_17
+              }
+              kotlinOptions { jvmTarget = "17" }
+          }
+          EOF
+          cat > app/src/main/AndroidManifest.xml <<'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              xmlns:tools="http://schemas.android.com/tools">
+              <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS"
+                  tools:ignore="ProtectedPermissions" />
+              <queries>
+                  <intent>
+                      <action android:name="android.intent.action.MAIN" />
+                      <category android:name="android.intent.category.HOME" />
+                  </intent>
+              </queries>
+              <application
+                  android:label="&#x9AB;&#x9CB;&#x9A8;&#x9C7;&#x9B0; &#x9AA;&#x9C7;&#x99B;&#x9A8;&#x9C7; &#x995;&#x9A4; &#x9B8;&#x9AE;&#x9AF;&#x9BC;?"
+                  android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+                  <activity android:name=".MainActivity" android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+          cat > app/src/main/java/com/example/phonetime/MainActivity.kt <<'EOF'
+          package com.example.phonetime
+
+          import android.app.Activity
+          import android.app.AppOpsManager
+          import android.app.usage.UsageEvents
+          import android.app.usage.UsageStatsManager
+          import android.content.Intent
+          import android.graphics.Color
+          import android.graphics.Typeface
+          import android.graphics.drawable.GradientDrawable
+          import android.os.Bundle
+          import android.os.Handler
+          import android.os.Looper
+          import android.provider.Settings
+          import android.util.TypedValue
+          import android.view.Gravity
+          import android.widget.LinearLayout
+          import android.widget.ScrollView
+          import android.widget.TextView
+          import java.util.Calendar
+          import java.util.Locale
+          import java.util.Random
+
+          class MainActivity : Activity() {
+
+              private lateinit var root: LinearLayout
+              private val handler = Handler(Looper.getMainLooper())
+              private val tick = object : Runnable {
+                  override fun run() { render(); handler.postDelayed(this, 60_000) }
+              }
+
+              data class Act(val emoji: String, val per: Double, val text: (String) -> String)
+
+              private val acts = listOf(
+                  Act("\uD83C\uDFAC", 2.5) { "$it \u099F\u09BF \u09B8\u09BF\u09A8\u09C7\u09AE\u09BE \u09A6\u09C7\u0996\u09C7 \u09AB\u09C7\u09B2\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83D\uDCDA", 6.0) { "$it \u099F\u09BF \u09AC\u0987 \u09AA\u09A1\u09BC\u09C7 \u09B6\u09C7\u09B7 \u0995\u09B0\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83C\uDFC3", 4.5) { "$it \u099F\u09BF \u09AE\u09CD\u09AF\u09BE\u09B0\u09BE\u09A5\u09A8 \u09A6\u09CC\u09A1\u09BC\u09BE\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\u2708\uFE0F", 11.0) { "$it \u09AC\u09BE\u09B0 \u09A2\u09BE\u0995\u09BE \u09A5\u09C7\u0995\u09C7 \u09B2\u09A8\u09CD\u09A1\u09A8 \u0989\u09A1\u09BC\u09C7 \u09AF\u09C7\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83D\uDEB6", 80.0) { "$it \u09AC\u09BE\u09B0 \u09A2\u09BE\u0995\u09BE \u09A5\u09C7\u0995\u09C7 \u0995\u0995\u09CD\u09B8\u09AC\u09BE\u099C\u09BE\u09B0 \u09B9\u09C7\u0981\u099F\u09C7 \u09AF\u09C7\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83D\uDDE3\uFE0F", 600.0) { "$it \u099F\u09BF \u09A8\u09A4\u09C1\u09A8 \u09AD\u09BE\u09B7\u09BE \u09B6\u09BF\u0996\u09C7 \u09AB\u09C7\u09B2\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83C\uDF93", 4500.0) { "$it \u099F\u09BF \u09AC\u09CD\u09AF\u09BE\u099A\u09C7\u09B2\u09B0 \u09A1\u09BF\u0997\u09CD\u09B0\u09BF \u09B6\u09C7\u09B7 \u0995\u09B0\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83D\uDE34", 8.0) { "$it \u09B0\u09BE\u09A4 \u09A8\u09BF\u09B6\u09CD\u099A\u09BF\u09A8\u09CD\u09A4\u09C7 \u0998\u09C1\u09AE\u09BE\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83C\uDF33", 0.5) { "$it \u099F\u09BF \u0997\u09BE\u099B \u09B2\u09BE\u0997\u09BE\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\u26BD", 1.5) { "$it \u099F\u09BF \u09AB\u09C1\u099F\u09AC\u09B2 \u09AE\u09CD\u09AF\u09BE\u099A \u0996\u09C7\u09B2\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83C\uDF73", 1.0) { "$it \u09AC\u09BE\u09B0 \u09A8\u09BF\u099C\u09C7\u09B0 \u09B9\u09BE\u09A4\u09C7 \u09B0\u09BE\u09A8\u09CD\u09A8\u09BE \u0995\u09B0\u09C7 \u09B8\u09AC\u09BE\u0987\u0995\u09C7 \u0996\u09BE\u0993\u09AF\u09BC\u09BE\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83C\uDFB8", 200.0) { "$it \u099F\u09BF \u09AC\u09BE\u09A6\u09CD\u09AF\u09AF\u09A8\u09CD\u09A4\u09CD\u09B0 \u09AC\u09BE\u099C\u09BE\u09A4\u09C7 \u09B6\u09BF\u0996\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" },
+                  Act("\uD83E\uDE81", 0.5) { "$it \u09AC\u09BE\u09B0 \u0998\u09C1\u09A1\u09BC\u09BF \u0989\u09A1\u09BC\u09BF\u09AF\u09BC\u09C7 \u09AA\u09BE\u09A1\u09BC\u09BE\u09B0 \u0998\u09C1\u09A1\u09BC\u09BF\u09B0 \u09AA\u09CD\u09AF\u09BE\u0981\u099A \u0995\u09BE\u099F\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8" }
+              )
+
+              override fun onCreate(b: Bundle?) {
+                  super.onCreate(b)
+                  window.statusBarColor = BG
+                  window.navigationBarColor = BG
+                  root = LinearLayout(this).apply {
+                      orientation = LinearLayout.VERTICAL
+                      setPadding(dp(16), dp(24), dp(16), dp(32))
+                  }
+                  setContentView(ScrollView(this).apply { setBackgroundColor(BG); addView(root) })
+              }
+
+              override fun onResume() { super.onResume(); handler.post(tick) }
+              override fun onPause() { super.onPause(); handler.removeCallbacks(tick) }
+
+              @Suppress("DEPRECATION")
+              private fun hasAccess(): Boolean = try {
+                  val ops = getSystemService(APP_OPS_SERVICE) as AppOpsManager
+                  ops.checkOpNoThrow(
+                      AppOpsManager.OPSTR_GET_USAGE_STATS,
+                      android.os.Process.myUid(),
+                      packageName
+                  ) == AppOpsManager.MODE_ALLOWED
+              } catch (e: Exception) { false }
+
+              private fun screenTime(from: Long, to: Long): Long {
+                  val usm = getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
+                  val home = packageManager.resolveActivity(
+                      Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), 0
+                  )?.activityInfo?.packageName
+                  val ev = usm.queryEvents(from, to)
+                  val e = UsageEvents.Event()
+                  val start = HashMap<String, Long>()
+                  var total = 0L
+                  while (ev.hasNextEvent()) {
+                      ev.getNextEvent(e)
+                      val p = e.packageName ?: continue
+                      if (p == packageName || p == home) continue
+                      when (e.eventType) {
+                          1 -> if (!start.containsKey(p)) start[p] = e.timeStamp   // foreground
+                          2 -> { val s = start.remove(p); if (s != null) total += e.timeStamp - s }  // background
+                      }
+                  }
+                  for (s in start.values) total += to - s
+                  return total.coerceAtLeast(0)
+              }
+
+              private fun render() {
+                  root.removeAllViews()
+                  root.addView(tv("\uD83D\uDCF1 \u09AB\u09CB\u09A8\u09C7\u09B0 \u09AA\u09C7\u099B\u09A8\u09C7 \u0995\u09A4 \u09B8\u09AE\u09AF\u09BC?", 22f, Color.WHITE, true).apply { setPadding(0, 0, 0, dp(16)) })
+
+                  if (!hasAccess()) {
+                      val c = card(0xFF673C48.toInt())
+                      c.addView(tv("\u09B8\u09A0\u09BF\u0995 \u09B9\u09BF\u09B8\u09BE\u09AC \u09A6\u09C7\u0996\u09BE\u09A4\u09C7 \"Usage Access\" \u0985\u09A8\u09C1\u09AE\u09A4\u09BF \u09A6\u09B0\u0995\u09BE\u09B0\u0964 \u09A8\u09BF\u099A\u09C7\u09B0 \u09AC\u09BE\u099F\u09A8\u09C7 \u099A\u09C7\u09AA\u09C7 \u098F\u0987 \u0985\u09CD\u09AF\u09BE\u09AA\u099F\u09BF \u099A\u09BE\u09B2\u09C1 \u0995\u09B0\u09C1\u09A8\u0964", 16f, Color.WHITE, false))
+                      root.addView(c)
+                      root.addView(button("\u0985\u09A8\u09C1\u09AE\u09A4\u09BF \u09A6\u09BF\u09A8") {
+                          startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                      })
+                      return
+                  }
+
+                  val now = System.currentTimeMillis()
+                  val cal = Calendar.getInstance().apply {
+                      set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+                      set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+                  }
+                  val todayStart = cal.timeInMillis
+                  cal.add(Calendar.DAY_OF_YEAR, -6)
+                  val weekStart = cal.timeInMillis
+
+                  val today = screenTime(todayStart, now)
+                  val week = screenTime(weekStart, now)
+                  val avgMs = week / 7.0
+                  val hours5y = avgMs / 3_600_000.0 * 365 * 5
+                  val days5y = hours5y / 24.0
+                  val months5y = days5y / 30.4
+
+                  // Today
+                  root.addView(card(0xFF1F4E79.toInt()).apply {
+                      addView(tv("\u0986\u099C\u0995\u09C7\u09B0 \u09B8\u09CD\u0995\u09CD\u09B0\u09BF\u09A8 \u099F\u09BE\u0987\u09AE", 16f, 0xFFDDE9F7.toInt(), false))
+                      addView(tv(dur(today), 34f, Color.WHITE, true))
+                  })
+                  // Last 7 days
+                  root.addView(card(0xFF14675B.toInt()).apply {
+                      addView(tv("\u0997\u09A4 \u09ED \u09A6\u09BF\u09A8\u09C7\u09B0 \u09B8\u09CD\u0995\u09CD\u09B0\u09BF\u09A8 \u099F\u09BE\u0987\u09AE", 16f, 0xFFD9F2EC.toInt(), false))
+                      addView(tv(dur(week), 34f, Color.WHITE, true))
+                      addView(tv("\u09A6\u09C8\u09A8\u09BF\u0995 \u0997\u09A1\u09BC: " + dur(avgMs.toLong()), 15f, 0xFFD9F2EC.toInt(), false))
+                  })
+                  // 5 years projection
+                  val h = hours5y.toLong()
+                  root.addView(card(0xFF4F3A8F.toInt()).apply {
+                      addView(tv("\u098F\u0987 \u09B9\u09BE\u09B0\u09C7 \u09EB \u09AC\u099B\u09B0\u09C7 \u0986\u09AA\u09A8\u09BF \u09AB\u09CB\u09A8\u09C7 \u09AC\u09CD\u09AF\u09AF\u09BC \u0995\u09B0\u09AC\u09C7\u09A8", 16f, 0xFFEDE7FF.toInt(), false))
+                      addView(tv("${num(h)} \u0998\u09A3\u09CD\u099F\u09BE", 40f, Color.WHITE, true))
+                      addView(tv("\u0985\u09B0\u09CD\u09A5\u09BE\u09CE", 16f, 0xFFEDE7FF.toInt(), false))
+                      addView(tv("${num(days5y.toLong())} \u09A6\u09BF\u09A8", 40f, Color.WHITE, true))
+                      addView(tv("\u2248 ${num(months5y.toLong())} \u09AE\u09BE\u09B8 \u09A6\u09BF\u09A8\u09B0\u09BE\u09A4 \u098F\u0995\u099F\u09BE\u09A8\u09BE \u09AB\u09CB\u09A8\u09C7!", 15f, 0xFFEDE7FF.toInt(), false))
+                  })
+                  // Fun card
+                  val seed = (Settings.Secure.getString(contentResolver, Settings.Secure.ANDROID_ID)
+                      ?: "x").hashCode().toLong() + Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+                  val picks = acts.filter { (hours5y / it.per).toLong() >= 1 }.shuffled(Random(seed)).take(3)
+                  val lines = if (picks.isEmpty()) listOf("\uD83D\uDC4D \u0986\u09AA\u09A8\u09BE\u09B0 \u09AB\u09CB\u09A8 \u09AC\u09CD\u09AF\u09AC\u09B9\u09BE\u09B0 \u0996\u09C1\u09AC\u0987 \u0995\u09AE \u2014 \u099A\u09BE\u09B2\u09BF\u09AF\u09BC\u09C7 \u09AF\u09BE\u09A8!")
+                  else picks.map { "${it.emoji} ${it.text(num((hours5y / it.per).toLong()))}" }
+                  root.addView(card(0xFF673C48.toInt()).apply {
+                      addView(tv("\uD83D\uDE02 ${num(h)} \u0998\u09A3\u09CD\u099F\u09BE\u09AF\u09BC \u0986\u09AA\u09A8\u09BF \u09AF\u09BE \u0995\u09B0\u09A4\u09C7 \u09AA\u09BE\u09B0\u09A4\u09C7\u09A8 \u2014", 17f, Color.WHITE, true))
+                      lines.forEach { addView(tv(it, 17f, Color.WHITE, false).apply { setPadding(0, dp(10), 0, 0) }) }
+                  })
+                  // Share
+                  val shareText = "\u0986\u09AE\u09BF \u09EB \u09AC\u099B\u09B0\u09C7 \u09AB\u09CB\u09A8\u09C7 \u09AC\u09CD\u09AF\u09AF\u09BC \u0995\u09B0\u09AC ${num(h)} \u0998\u09A3\u09CD\u099F\u09BE (${num(days5y.toLong())} \u09A6\u09BF\u09A8)! " +
+                      "\u0986\u099C: ${dur(today)}, \u0997\u09A4 \u09ED \u09A6\u09BF\u09A8: ${dur(week)} \uD83D\uDCF1"
+                  root.addView(button("\u09AC\u09A8\u09CD\u09A7\u09C1\u09A6\u09C7\u09B0 \u09B8\u09BE\u09A5\u09C7 \u09B6\u09C7\u09AF\u09BC\u09BE\u09B0 \u0995\u09B0\u09C1\u09A8") {
+                      startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                          type = "text/plain"; putExtra(Intent.EXTRA_TEXT, shareText)
+                      }, "\u09B6\u09C7\u09AF\u09BC\u09BE\u09B0"))
+                  })
+              }
+
+              // ---------- helpers ----------
+              private fun bn(s: String) = s.map { if (it in '0'..'9') '\u09E6' + (it - '0') else it }.joinToString("")
+              private fun num(n: Long) = bn(String.format(Locale.US, "%,d", n))
+              private fun dur(ms: Long): String {
+                  val h = ms / 3_600_000; val m = ms / 60_000 % 60
+                  return if (h > 0) "${bn(h.toString())} \u0998\u09A3\u09CD\u099F\u09BE ${bn(m.toString())} \u09AE\u09BF\u09A8\u09BF\u099F" else "${bn(m.toString())} \u09AE\u09BF\u09A8\u09BF\u099F"
+              }
+              private fun dp(v: Int) = (v * resources.displayMetrics.density).toInt()
+
+              private fun tv(t: String, sp: Float, color: Int, bold: Boolean) = TextView(this).apply {
+                  text = t; setTextSize(TypedValue.COMPLEX_UNIT_SP, sp); setTextColor(color)
+                  if (bold) typeface = Typeface.DEFAULT_BOLD
+                  setPadding(0, dp(2), 0, dp(2))
+              }
+
+              private fun card(color: Int) = LinearLayout(this).apply {
+                  orientation = LinearLayout.VERTICAL
+                  setPadding(dp(20), dp(18), dp(20), dp(18))
+                  background = GradientDrawable().apply { setColor(color); cornerRadius = dp(28).toFloat() }
+                  layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(14) }
+              }
+
+              private fun button(t: String, onClick: () -> Unit) = TextView(this).apply {
+                  text = t; setTextColor(0xFFC9B6FF.toInt()); setTextSize(TypedValue.COMPLEX_UNIT_SP, 16f)
+                  typeface = Typeface.DEFAULT_BOLD; gravity = Gravity.CENTER
+                  setPadding(0, dp(16), 0, dp(16))
+                  background = GradientDrawable().apply {
+                      setColor(Color.TRANSPARENT); setStroke(dp(1), 0xFFC9B6FF.toInt()); cornerRadius = dp(30).toFloat()
+                  }
+                  layoutParams = LinearLayout.LayoutParams(-1, -2)
+                  setOnClickListener { onClick() }
+              }
+
+              companion object { const val BG = 0xFF121014.toInt() }
+          }
+          EOF
+      - name: Build
+        run: gradle assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PhoneTime-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
